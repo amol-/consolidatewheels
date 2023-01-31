@@ -1,0 +1,16 @@
+name: Test
+
+on:
+  push:
+  pull_request:
+
+jobs:
+  pre-commit:
+    name: Pre-commit checks (Black, Flake8, ...)
+    runs-on: ubuntu-latest
+    steps:
+      - uses: actions/checkout@v3
+      - uses: actions/setup-python@v4
+        with:
+          python-version: "3.7"
+      - uses: pre-commit/action@v3.0.0

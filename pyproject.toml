@@ -1,0 +1,21 @@
+[build-system]
+requires = ["setuptools>=45", "wheel"]
+
+[project]
+name = "consolidatewheels"
+version = "0.1"
+
+[project.scripts]
+consolidatewheels = "consolidatewheels.main:main"
+
+[options.extras_require]
+testing = [
+    "pytest >= 3.4",
+    "pytest-cov"
+]
+
+[tool.black]
+target-version = ["py37", "py38", "py39", "py310", "py311"]
+
+[tool.isort]
+profile = "black"
