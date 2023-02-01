@@ -2,11 +2,11 @@ from __future__ import annotations
 
 import argparse
 import os
+import shutil
+import subprocess
 import sys
-from distutils.spawn import find_executable
-from subprocess import CalledProcessError, check_output
 
-from .consolidatewheels import consolidate
+from . import consolidatewheels
 
 
 def main() -> int:
@@ -14,11 +14,11 @@ def main() -> int:
 
     Executes consolidatewheels and returns the exit code.
     """
-    if not verify_requirements():
+    if not requirements_satisfied():
         return 1
 
     opts = parse_options()
-    consolidate(opts.wheels, opts.dest)
+    consolidatewheels.consolidate(opts.wheels, opts.dest)
     return 0
 
 
@@ -34,7 +34,7 @@ def parse_options() -> argparse.Namespace:
         "wheels", nargs="+", help="List of wheel files that have to be consolidated."
     )
     parser.add_argument(
-        "dest",
+        "--dest",
         default=None,
         nargs="?",
         help="Destination dir where to place consolidated wheels.",
@@ -46,10 +46,14 @@ def parse_options() -> argparse.Namespace:
         # by default save the new wheels in current directory.
         opts.dest = os.getcwd()
 
+    # Ensure we always provide absolute path,
+    # the rest of the script don't have to care about relative paths
+    # when it changes working directory.
+    opts.dest = os.path.abspath(opts.dest)
     return opts
 
 
-def verify_requirements() -> bool:
+def requirements_satisfied() -> bool:
     """Verifies that all system requirements are satisfied.
 
     Those can't be esily verified during install process,
@@ -62,13 +66,13 @@ def verify_requirements() -> bool:
         return False
 
     # Ensure that patchelf exists and we can use it.
-    if not find_executable("patchelf"):
+    if not shutil.which("patchelf"):
         print("Cannot find required utility `patchelf` in PATH")
         return False
 
     try:
-        check_output(["patchelf", "--version"]).decode("utf-8")
-    except CalledProcessError:
+        subprocess.check_output(["patchelf", "--version"]).decode("utf-8")
+    except subprocess.CalledProcessError:
         print("Could not call `patchelf` binary")
         return False
 

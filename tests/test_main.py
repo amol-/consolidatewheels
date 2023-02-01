@@ -1,0 +1,107 @@
+from __future__ import annotations
+
+import argparse
+import os
+from subprocess import CalledProcessError
+
+import mock
+
+from consolidatewheels import main
+
+
+def test_options():
+    # No options provided ensure we error.
+    with (
+        mock.patch("sys.argv", ["consolidatewheels"]),
+        mock.patch("sys.exit") as sys_exit,
+    ):
+        main.parse_options()
+    sys_exit.assert_called_with(2)
+
+    # Invalid options provided ensure we error.
+    with (
+        mock.patch("sys.argv", ["consolidatewheels", "--not-existing-option"]),
+        mock.patch("sys.exit") as sys_exit,
+    ):
+        main.parse_options()
+    sys_exit.assert_called_with(2)
+
+    # Ensure options work
+    with (
+        mock.patch(
+            "sys.argv",
+            ["consolidatewheels", "wheel1", "wheel2", "--dest", "./outputdir"],
+        ),
+    ):
+        opts = main.parse_options()
+    assert opts.wheels == ["wheel1", "wheel2"]
+    assert opts.dest == os.path.abspath("./outputdir")
+
+    # Ensure we use current directory for output when none provided
+    with (mock.patch("sys.argv", ["consolidatewheels", "wheel1"]),):
+        opts = main.parse_options()
+    assert opts.wheels == ["wheel1"]
+    assert opts.dest == os.path.abspath(os.getcwd())
+
+
+def test_requirements_satisfied():
+    # Ensure we detect when it's not linux
+    with mock.patch("sys.platform", new="win32"):
+        verify_result = main.requirements_satisfied()
+    assert verify_result is False
+
+    # Ensure the check passes when dependencies are satisfied
+    with (
+        mock.patch("shutil.which", return_value="fakepath"),
+        mock.patch("subprocess.check_output"),
+    ):
+        verify_result = main.requirements_satisfied()
+    assert verify_result is True
+
+    # Ensure we detect lack of patchelf
+    with mock.patch("shutil.which") as shutil_which:
+        shutil_which.return_value = None
+        verify_result = main.requirements_satisfied()
+    assert verify_result is False
+
+    # Ensure we detect patchelf not working.
+    with (
+        mock.patch("shutil.which", return_value="fakepath"),
+        mock.patch(
+            "subprocess.check_output",
+            side_effect=CalledProcessError(returncode=1, cmd="patchelf"),
+        ),
+    ):
+        verify_result = main.requirements_satisfied()
+    assert verify_result is False
+
+
+def test_main():
+    # Mostly just test that main runs consolidate at the end.
+    default_options = argparse.Namespace()
+    default_options.dest = "somedestdir"
+    default_options.wheels = ["one", "two"]
+    with (
+        mock.patch("consolidatewheels.main.requirements_satisfied", return_value=True),
+        mock.patch(
+            "consolidatewheels.main.parse_options", return_value=default_options
+        ),
+        mock.patch(
+            "consolidatewheels.consolidatewheels.consolidate"
+        ) as consolidate_func,
+    ):
+        main.main()
+    consolidate_func.assert_called_once_with(
+        default_options.wheels, default_options.dest
+    )
+
+    # Ensure we exit if we fail checking requirements
+    with (
+        mock.patch("consolidatewheels.main.requirements_satisfied", return_value=False),
+        mock.patch(
+            "consolidatewheels.consolidatewheels.consolidate"
+        ) as consolidate_func,
+    ):
+        return_value = main.main()
+    assert return_value == 1
+    consolidate_func.assert_not_called()
