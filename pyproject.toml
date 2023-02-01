@@ -25,6 +25,9 @@ testing = [
 [project.scripts]
 consolidatewheels = "consolidatewheels.main:main"
 
+[tool.setuptools]
+packages = ["consolidatewheels"]
+
 [tool.black]
 target-version = ["py37", "py38", "py39", "py310", "py311"]
 
