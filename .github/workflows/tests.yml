@@ -35,5 +35,9 @@ jobs:
         with:
           python-version: "${{ matrix.python }}"
           architecture: x64
+      - name: Install Test dependencies
+        run: |
+          pip install -U --upgrade-strategy=eager --pre -e .[testing]
       - name: Run tests
-        run: pytest -v
+        run: |
+          pytest -v
