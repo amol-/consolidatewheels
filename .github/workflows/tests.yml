@@ -41,3 +41,9 @@ jobs:
       - name: Run tests
         run: |
           pytest -v
+      - name: Publish to coveralls.io
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
+        run: |
+          pip install 'coveralls'
+          coveralls --service=github
