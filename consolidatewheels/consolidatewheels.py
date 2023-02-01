@@ -60,6 +60,7 @@ def unpackwheels(wheels):
 
 
 def packwheels(wheeldirs, destdir):
+    os.makedirs(destdir, exist_ok=True)
     for wheeldir in wheeldirs:
         if subprocess.call(["wheel", "pack", wheeldir, "--dest-dir", destdir]):
             raise RuntimeError(f"Unable to pack {wheeldir} into {destdir}")
