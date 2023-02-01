@@ -6,14 +6,23 @@ import subprocess
 import tempfile
 
 
-def consolidate(wheels, destdir):
+def consolidate(wheels: list[str], destdir: str) -> None:
+    """Consolidate shared objects references within multiple wheels.
+
+    Given a list of wheels, makes sure that they all share the
+    same marshaling of libraries names when those libraries aren't
+    already included in the wheel itself.
+
+    The resulting new wheels are written into ``destdir``.
+
+    Note: This function works in a temporary directory, so the
+          current path for all functions invoked by it will
+          be the the temporary directory.
+    """
     wheels = [os.path.abspath(w) for w in wheels]
     with tempfile.TemporaryDirectory() as tmpcd:
         print(f"Working inside {tmpcd}")
-        os.chdir(tmpcd)
-
-        unpackwheels(wheels)
-        wheeldirs = os.listdir(tmpcd)
+        wheeldirs = unpackwheels(wheels, workdir=tmpcd)
         mangling_map = buildlibmap(wheeldirs)
         print(f"Applying consistent mangling: {mangling_map}")
         patch_wheeldirs(wheeldirs, mangling_map)
@@ -53,10 +62,19 @@ def buildlibmap(wheeldirs):
     return all_shared_objects
 
 
-def unpackwheels(wheels):
+def unpackwheels(wheels: list[str], workdir: str) -> list[str]:
+    """Unpack multiple wheels into workdir and returns list of resulting directories.
+
+    All provided paths are expected to be in absolute format
+    and the returned results are absolute paths too.
+    """
+    if os.listdir(workdir):
+        raise ValueError("workdir must be empty")
+
     for wheel in wheels:
-        if subprocess.call(["wheel", "unpack", wheel]):
+        if subprocess.call(["wheel", "unpack", wheel, "--dest", workdir]):
             raise RuntimeError(f"Unable to unpack {wheel}")
+    return [os.path.join(workdir, wheel) for wheel in os.listdir(workdir)]
 
 
 def packwheels(wheeldirs, destdir):

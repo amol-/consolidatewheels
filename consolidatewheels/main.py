@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 
-from . import consolidatewheels
+from . import consolidate
 
 
 def main() -> int:
@@ -18,7 +18,7 @@ def main() -> int:
         return 1
 
     opts = parse_options()
-    consolidatewheels.consolidate(opts.wheels, opts.dest)
+    consolidate.consolidate(opts.wheels, opts.dest)
     return 0
 
 
