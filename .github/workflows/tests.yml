@@ -6,7 +6,7 @@ on:
 
 jobs:
   pre-commit:
-    name: Pre-commit checks (Black, Flake8, ...)
+    name: Pre-commit checks (Black, Flake8, MyPy, ...)
     runs-on: ubuntu-latest
     steps:
       - uses: actions/checkout@v3

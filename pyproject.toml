@@ -4,6 +4,12 @@ requires = ["setuptools>=45", "wheel"]
 [project]
 name = "consolidatewheels"
 version = "0.1"
+authors = [
+    {name = "Alessandro Molina", email = "amol@turbogears.org"},
+]
+description = "Con"
+readme = "README.rst"
+requires-python = ">=3.7"
 
 [project.scripts]
 consolidatewheels = "consolidatewheels.main:main"
@@ -19,3 +25,8 @@ target-version = ["py37", "py38", "py39", "py310", "py311"]
 
 [tool.isort]
 profile = "black"
+
+[tool.mypy]
+follow_imports = "silent"
+ignore_missing_imports = true
+warn_unused_ignores = true
