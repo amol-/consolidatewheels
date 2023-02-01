@@ -7,7 +7,8 @@ version = "0.1"
 authors = [
     {name = "Alessandro Molina", email = "amol@turbogears.org"},
 ]
-description = "Con"
+license = {text = "MIT"}
+description = "Consolidates the shared object dependencies across multiple wheels"
 readme = "README.rst"
 requires-python = ">=3.7"
 classifiers = [
