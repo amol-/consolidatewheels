@@ -3,9 +3,9 @@ from __future__ import annotations
 import argparse
 import os
 from subprocess import CalledProcessError
+from unittest import mock
 
-import mock
-
+from consolidatewheels import __main__  # noqa
 from consolidatewheels import main
 
 
