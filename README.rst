@@ -96,11 +96,11 @@ Usage
 
 Usage instructions::
 
-    consolidate --help
+    consolidatewheels --help
 
 Example::
 
-    consolidate libone.whl libtwo.whl --dest=./consolidated_wheels
+    consolidatewheels libone.whl libtwo.whl --dest=./consolidated_wheels
 
 For a more complex example and a testing environment, you can take
 a look at https://github.com/amol-/wheeldeps which uses ``consolidatewheels``
