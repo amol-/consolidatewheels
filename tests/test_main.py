@@ -41,8 +41,8 @@ def test_options():
 
 
 def test_requirements_satisfied():
-    # Ensure we detect when it's not linux
-    with mock.patch("sys.platform", new="win32"):
+    # Ensure we detect when it's not a supported platform
+    with mock.patch("sys.platform", new="os2"):
         verify_result = main.requirements_satisfied()
     assert verify_result is False
 

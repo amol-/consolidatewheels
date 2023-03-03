@@ -15,7 +15,8 @@ classifiers = [
     "Programming Language :: Python :: 3",
 ]
 dependencies = [
-    "wheel"
+    "wheel",
+    "pkginfo"
 ]
 
 [project.optional-dependencies]

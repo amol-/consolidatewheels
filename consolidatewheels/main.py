@@ -6,7 +6,7 @@ import shutil
 import subprocess
 import sys
 
-from . import consolidate
+from . import consolidate_linux, consolidate_osx, dedupe
 
 
 def main() -> int:
@@ -18,7 +18,16 @@ def main() -> int:
         return 1
 
     opts = parse_options()
-    consolidate.consolidate(opts.wheels, opts.dest)
+    if opts.dedupe:
+        # On Mac, delocate does not mangle library names,
+        # but there is no --exclude option, 
+        # so we just have to remove the extra lib.
+        dedupe.dedupe(opts.wheels, opts.dest)
+    
+    if sys.platform == "linux":
+        consolidate_linux.consolidate(opts.wheels, opts.dest)
+    elif sys.platform == "darwin":
+        consolidate_osx.consolidate(opts.wheels, opts.dest)
     return 0
 
 
@@ -39,12 +48,23 @@ def parse_options() -> argparse.Namespace:
         nargs="?",
         help="Destination dir where to place consolidated wheels.",
     )
+    parser.add_argument(
+        "--dedupe",
+        default=False,
+        description="Remove duplicates of the library included in multiple wheels. "
+    )
     opts = parser.parse_args()
 
     if opts.dest is None:
         # If no destination directory was provided,
         # by default save the new wheels in current directory.
         opts.dest = os.getcwd()
+
+    if opts.dedupe is False and sys.platform == "darwin":
+        # delocate currently doesn't support a --exclude option
+        # like auditwheel does. So --dedupe is required on OSX.
+        print("--dedupe is required on OSX.")
+        sys.exit(1)
 
     # Ensure we always provide absolute path,
     # the rest of the script don't have to care about relative paths
@@ -61,19 +81,27 @@ def requirements_satisfied() -> bool:
 
     Returns ``False`` is the requirements are not satisfied.
     """
-    if sys.platform != "linux":
-        print("Error: This tool only supports Linux")
-        return False
+    if sys.platform == "darwin":
+        if not shutil.which("install_name_tool"):
+            print("Cannot find required utility `install_name_tool` in PATH")
+            return False
+        
+        if not shutil.which("codesign"):
+            print("Cannot find required utility `codesign` in PATH")
+            return False
+    elif sys.platform == "linux":
+        # Ensure that patchelf exists and we can use it.
+        if not shutil.which("patchelf"):
+            print("Cannot find required utility `patchelf` in PATH")
+            return False
 
-    # Ensure that patchelf exists and we can use it.
-    if not shutil.which("patchelf"):
-        print("Cannot find required utility `patchelf` in PATH")
-        return False
-
-    try:
-        subprocess.check_output(["patchelf", "--version"]).decode("utf-8")
-    except subprocess.CalledProcessError:
-        print("Could not call `patchelf` binary")
+        try:
+            subprocess.check_output(["patchelf", "--version"]).decode("utf-8")
+        except subprocess.CalledProcessError:
+            print("Could not call `patchelf` binary")
+            return False
+    else:
+        print("Error: This tool only supports Linux and MacOSX")
         return False
 
     # All requirements are in place, that's good!

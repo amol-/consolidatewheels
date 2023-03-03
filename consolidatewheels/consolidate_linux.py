@@ -4,6 +4,9 @@ import os
 import pathlib
 import subprocess
 import tempfile
+import shutil
+
+from .wheels import unpackwheels, packwheels
 
 
 def consolidate(wheels: list[str], destdir: str) -> None:
@@ -95,29 +98,3 @@ def buildlibmap(wheeldirs: list[str]) -> dict[str, str]:
                 )
             all_shared_objects[demangled_lib] = lib
     return all_shared_objects
-
-
-def unpackwheels(wheels: list[str], workdir: str) -> list[str]:
-    """Unpack multiple wheels into workdir and returns list of resulting directories.
-
-    All provided paths are expected to be in absolute format
-    and the returned results are absolute paths too.
-    """
-    if os.listdir(workdir):
-        raise ValueError("workdir must be empty")
-
-    for wheel in wheels:
-        if subprocess.call(["wheel", "unpack", wheel, "--dest", workdir]):
-            raise RuntimeError(f"Unable to unpack {wheel}")
-    return [os.path.join(workdir, wheel) for wheel in os.listdir(workdir)]
-
-
-def packwheels(wheeldirs: list[str], destdir: str) -> None:
-    """Pack multiple wheel directories as wheel files into a destination path.
-
-    If the destination path doesn't exist it will be created.
-    """
-    os.makedirs(destdir, exist_ok=True)
-    for wheeldir in wheeldirs:
-        if subprocess.call(["wheel", "pack", wheeldir, "--dest-dir", destdir]):
-            raise RuntimeError(f"Unable to pack {wheeldir} into {destdir}")
