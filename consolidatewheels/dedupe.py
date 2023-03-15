@@ -1,17 +1,19 @@
+from __future__ import annotations
+
+import itertools
 import os
-import re
-import tempfile
 import pathlib
+import tempfile
 
-import pkginfo
 import pkg_resources
+import pkginfo
 
-from . import consolidate
+from . import wheelsfunc
 
 
-def dedupe(wheels: list[str], destdir: str) -> None:
+def dedupe(wheels: list[str], destdir: str) -> list[str]:
     """Given a list of wheels remove duplicated libraries
-    
+
     This searches .dylibs embedded by delocate for libraries
     that have been included multiple times across the wheels
     and will preserve only one of the copies.
@@ -22,20 +24,23 @@ def dedupe(wheels: list[str], destdir: str) -> None:
     wheels = [distributions[distname] for distname in sorted_distributions]
     print(wheels)
     with tempfile.TemporaryDirectory() as tmpcd:
-        print(f"Working inside {tmpcd}")
-        wheeldirs = consolidate.unpackwheels(wheels, workdir=tmpcd)
+        print(f"Dedupe, Working inside {tmpcd}")
+        wheeldirs = wheelsfunc.unpackwheels(wheels, workdir=tmpcd)
         delete_duplicate_libs(wheeldirs)
-        consolidate.packwheels(wheeldirs, destdir)
+        wheels = wheelsfunc.packwheels(wheeldirs, destdir)
+    return wheels
 
 
-def build_dependencies_tree(wheels: list[str]) -> tuple[dict[str, str], dict[str, list[str]]]:
-    deptree = {}
+def build_dependencies_tree(
+    wheels: list[str],
+) -> tuple[dict[str, str], dict[str, list[str]]]:
+    deptree = {}  # type: dict[str, list[str]]
     name2file = {}
 
     for wheel_fname in wheels:
-        distribution_name, _ = os.path.basename(wheel_fname).split('-', 1)
+        distribution_name, _ = os.path.basename(wheel_fname).split("-", 1)
         name2file[distribution_name] = wheel_fname
-        deptree[distribution_name] = dependencies = []
+        dependencies = deptree[distribution_name] = []
 
         metadata = pkginfo.get_metadata(wheel_fname)
         deps = metadata.requires_dist
@@ -46,7 +51,7 @@ def build_dependencies_tree(wheels: list[str]) -> tuple[dict[str, str], dict[str
                 # unconditional dependency, track it.
                 dependencies.append(req_short)
                 continue
-        
+
     return name2file, deptree
 
 
@@ -83,7 +88,10 @@ def delete_duplicate_libs(wheeldirs: list[str]) -> None:
 
     for wheeldir in wheeldirs:
         print("Processing", wheeldir)
-        for lib in pathlib.Path(wheeldir).rglob(".dylibs/*"):
+        for lib in itertools.chain(
+            pathlib.Path(wheeldir).rglob(".dylibs/*"),
+            pathlib.Path(wheeldir).rglob("*.libs/*.so"),
+        ):
             libname = lib.name
             if libname in already_seen:
                 print(f"Removing {libname} as already provided by another wheel.")

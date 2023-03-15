@@ -5,6 +5,7 @@ import os
 import shutil
 import subprocess
 import sys
+import tempfile
 
 from . import consolidate_linux, consolidate_osx, dedupe
 
@@ -18,16 +19,15 @@ def main() -> int:
         return 1
 
     opts = parse_options()
-    if opts.dedupe:
-        # On Mac, delocate does not mangle library names,
-        # but there is no --exclude option, 
-        # so we just have to remove the extra lib.
-        dedupe.dedupe(opts.wheels, opts.dest)
-    
     if sys.platform == "linux":
         consolidate_linux.consolidate(opts.wheels, opts.dest)
     elif sys.platform == "darwin":
-        consolidate_osx.consolidate(opts.wheels, opts.dest)
+        # On Mac, delocate does not mangle library names,
+        # but there is no --exclude option,
+        # so we just have to remove the extra lib.
+        with tempfile.TemporaryDirectory() as dedupedir:
+            wheels = dedupe.dedupe(opts.wheels, dedupedir)
+        consolidate_osx.consolidate(wheels, opts.dest)
     return 0
 
 
@@ -48,23 +48,12 @@ def parse_options() -> argparse.Namespace:
         nargs="?",
         help="Destination dir where to place consolidated wheels.",
     )
-    parser.add_argument(
-        "--dedupe",
-        default=False,
-        description="Remove duplicates of the library included in multiple wheels. "
-    )
     opts = parser.parse_args()
 
     if opts.dest is None:
         # If no destination directory was provided,
         # by default save the new wheels in current directory.
         opts.dest = os.getcwd()
-
-    if opts.dedupe is False and sys.platform == "darwin":
-        # delocate currently doesn't support a --exclude option
-        # like auditwheel does. So --dedupe is required on OSX.
-        print("--dedupe is required on OSX.")
-        sys.exit(1)
 
     # Ensure we always provide absolute path,
     # the rest of the script don't have to care about relative paths
@@ -85,7 +74,7 @@ def requirements_satisfied() -> bool:
         if not shutil.which("install_name_tool"):
             print("Cannot find required utility `install_name_tool` in PATH")
             return False
-        
+
         if not shutil.which("codesign"):
             print("Cannot find required utility `codesign` in PATH")
             return False

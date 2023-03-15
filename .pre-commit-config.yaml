@@ -34,7 +34,7 @@ repos:
   - id: mypy
     name: mypy
     language: python
-    additional_dependencies: ["mypy"]
+    additional_dependencies: ["mypy", "types-setuptools"]
     entry: "mypy"
     files: "consolidatewheels/.+\\.py$"
     require_serial: true

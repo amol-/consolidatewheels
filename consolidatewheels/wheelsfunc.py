@@ -1,6 +1,8 @@
+from __future__ import annotations
+
 import os
-import subprocess
 import shutil
+import subprocess
 
 
 def unpackwheels(wheels: list[str], workdir: str) -> list[str]:
@@ -12,7 +14,7 @@ def unpackwheels(wheels: list[str], workdir: str) -> list[str]:
     if os.listdir(workdir):
         raise ValueError("workdir must be empty")
 
-    wheeldirs = []
+    resulting_wheeldirs = []
     tmpdir = os.path.join(workdir, "tmp")
     for wheel in wheels:
         if subprocess.call(["wheel", "unpack", wheel, "--dest", tmpdir]):
@@ -21,17 +23,26 @@ def unpackwheels(wheels: list[str], workdir: str) -> list[str]:
         # This is a bit of an hack to preserve order of directories
         wheeldir = os.listdir(tmpdir)[0]
         shutil.move(os.path.join(tmpdir, wheeldir), workdir)
-        wheeldirs.append(os.path.join(workdir, wheeldir))
+        resulting_wheeldirs.append(os.path.join(workdir, wheeldir))
 
-    return wheeldirs
+    return resulting_wheeldirs
 
 
-def packwheels(wheeldirs: list[str], destdir: str) -> None:
+def packwheels(wheeldirs: list[str], destdir: str) -> list[str]:
     """Pack multiple wheel directories as wheel files into a destination path.
 
     If the destination path doesn't exist it will be created.
     """
-    os.makedirs(destdir, exist_ok=True)
+    tmpdir = os.path.join(destdir, "tmp")
+    os.makedirs(tmpdir, exist_ok=True)
+
+    resulting_wheels = []
     for wheeldir in wheeldirs:
-        if subprocess.call(["wheel", "pack", wheeldir, "--dest-dir", destdir]):
-            raise RuntimeError(f"Unable to pack {wheeldir} into {destdir}")
+        if subprocess.call(["wheel", "pack", wheeldir, "--dest-dir", tmpdir]):
+            raise RuntimeError(f"Unable to pack {wheeldir} into {tmpdir}")
+
+        # This is a bit of an hack to preserve order of directories
+        wheel = os.listdir(tmpdir)[0]
+        shutil.move(os.path.join(tmpdir, wheel), destdir)
+        resulting_wheels.append(os.path.join(destdir, wheel))
+    return resulting_wheels

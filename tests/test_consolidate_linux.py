@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import glob
 import os
 import re
 import shutil
@@ -8,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from consolidatewheels import consolidate_linux, wheels
+from consolidatewheels import consolidate_linux, wheelsfunc
 
 HERE = os.path.dirname(__file__)
 FIXTURE_FILES = {
@@ -21,7 +20,7 @@ FIXTURE_FILES = {
 
 
 def test_buildlibmap(tmpdir):
-    wheeldir = wheels.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
+    wheeldir = wheelsfunc.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
     wheeldir = wheeldir[0]
 
     # Ensure that mapping works in common case
@@ -40,7 +39,7 @@ def test_buildlibmap(tmpdir):
 
 
 def test_patch_wheeldirs(tmpdir):
-    wheeldir = wheels.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
+    wheeldir = wheelsfunc.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
     wheeldir = wheeldir[0]
 
     # Create a second wheel without the mangled lib
