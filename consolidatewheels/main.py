@@ -27,7 +27,7 @@ def main() -> int:
         # so we just have to remove the extra lib.
         with tempfile.TemporaryDirectory() as dedupedir:
             wheels = dedupe.dedupe(opts.wheels, dedupedir)
-        consolidate_osx.consolidate(wheels, opts.dest)
+            consolidate_osx.consolidate(wheels, opts.dest)
     return 0
 
 
