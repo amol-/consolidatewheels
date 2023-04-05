@@ -78,7 +78,7 @@ def test_main():
     ), mock.patch(
         "consolidatewheels.main.parse_options", return_value=default_options
     ), mock.patch(
-        "consolidatewheels.consolidate.consolidate"
+        "consolidatewheels.consolidate_linux.consolidate"
     ) as consolidate_func:
         main.main()
     consolidate_func.assert_called_once_with(
@@ -88,7 +88,9 @@ def test_main():
     # Ensure we exit if we fail checking requirements
     with mock.patch(
         "consolidatewheels.main.requirements_satisfied", return_value=False
-    ), mock.patch("consolidatewheels.consolidate.consolidate") as consolidate_func:
+    ), mock.patch(
+        "consolidatewheels.consolidate_linux.consolidate"
+    ) as consolidate_func:
         return_value = main.main()
     assert return_value == 1
     consolidate_func.assert_not_called()

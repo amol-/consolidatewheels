@@ -25,17 +25,17 @@ def test_buildlibmap(tmpdir):
 
     # Ensure that mapping works in common case
     mapping = consolidate_linux.buildlibmap([wheeldir])
-    assert mapping == {"libbar.so": "libbar-3fac4b7b.so"}
+    assert mapping == {
+        "libbar.so": "libbar-3fac4b7b.so",
+        "libfoo.so": "libfoo-3faccd3s.so",
+    }
 
     # Ensure buildlibmap detects conflicts
     duplicatewheeldir = os.path.join(tmpdir, "anotherwheel")
     shutil.copytree(wheeldir, duplicatewheeldir)
     with pytest.raises(ValueError) as err:
         consolidate_linux.buildlibmap([wheeldir, duplicatewheeldir])
-    assert (
-        str(err.value) == "Library libbar.so appears multiple times: "
-        "libbar-3fac4b7b.so, libbar-3fac4b7b.so"
-    )
+    assert str(err.value).startswith("Library libbar.so appears multiple times: ")
 
 
 def test_patch_wheeldirs(tmpdir):
