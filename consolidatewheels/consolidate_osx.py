@@ -28,7 +28,20 @@ def consolidate(wheels: list[str], destdir: str) -> None:
         packwheels(wheeldirs, destdir)
 
 
-def patch_wheeldirs(wheeldirs, consolidated_id):
+def patch_wheeldirs(wheeldirs: list[str], consolidated_id: str) -> None:
+    """Apply same identifier and path to all libraries in wheel directories.
+
+    Given multiple directiories of unpacked wheels, ensure that all shared
+    objects in those directories do have the same identifier and path
+    so that they can be shared across the wheels.
+
+    ``consolidate_id`` is the unique prefix that has to be applied to
+    library identifiers to distinguish them other versions of the same
+    library. It's usually a random generated string.
+
+    It takes for granted that each shared object appears only once,
+    so dedupe must have been applied before.
+    """
     patched_identifier = {}
     seen_dependencies = set()
     for wheeldir in wheeldirs:
@@ -60,21 +73,32 @@ def patch_wheeldirs(wheeldirs, consolidated_id):
         seen_dependencies |= seen_in_wheel
 
 
-def update_library_id(libpath, libid):
+def update_library_id(libpath: str | pathlib.Path, libid: str) -> int:
+    """Run install_name_tool to set the identifier of a library"""
     return subprocess.call(["install_name_tool", libpath, "-id", libid])
 
 
-def update_dependency_path(libpath, deppath, newdeppath):
+def update_dependency_path(
+    libpath: str | pathlib.Path,
+    deppath: str | pathlib.Path,
+    newdeppath: str | pathlib.Path,
+) -> int:
+    """Replace the path of a dependency of a library with a new one."""
     return subprocess.call(
         ["install_name_tool", libpath, "-change", deppath, newdeppath]
     )
 
 
-def resign_library(libpath):
+def resign_library(libpath: str | pathlib.Path) -> int:
+    """Sign again the library for it to be loadable.
+
+    This is required after ``update_library_id`` or ``update_dependency_path``
+    """
     return subprocess.call(["codesign", "--force", "-s", "-", libpath])
 
 
-def get_library_dependencies(libpath):
+def get_library_dependencies(libpath: str | pathlib.Path) -> dict[str, str]:
+    """Return the list of dependencies of a target library"""
     out = subprocess.run(["otool", "-X", "-L", libpath], capture_output=True)
     libpaths = {}
     for line in out.stdout.decode("utf-8").splitlines():

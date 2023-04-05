@@ -34,6 +34,12 @@ def dedupe(wheels: list[str], destdir: str) -> list[str]:
 def build_dependencies_tree(
     wheels: list[str],
 ) -> tuple[dict[str, str], dict[str, list[str]]]:
+    """Given a list of wheels, return how they depend on each other.
+
+    Returns a tuple where the first entry is a dictionary
+    containing the mapping of each wheel distribution to the wheel name.
+    The second entry is a mapping of each wheel to its own dependencies.
+    """
     deptree = {}  # type: dict[str, list[str]]
     name2file = {}
 
@@ -56,6 +62,12 @@ def build_dependencies_tree(
 
 
 def sort_dependencies(deptree: dict[str, list[str]]) -> list[str]:
+    """Given a wheels dependency tree, sort wheels based on their dependencies.
+
+    This sorts the output of ``build_dependencies_tree`` so that wheels
+    that have no dependencies on other wheels are first, and then
+    dependants come subsequently
+    """
     result = []
     tracked_deps = set(deptree.keys())
     while deptree:
@@ -84,6 +96,19 @@ def sort_dependencies(deptree: dict[str, list[str]]) -> list[str]:
 
 
 def delete_duplicate_libs(wheeldirs: list[str]) -> None:
+    """Given directories of unpacked wheels, preserve one copy of embedded libs.
+
+    Deletes embedded libraries if they are provided by multiple wheels,
+    only the first encountered lib is preserved.
+
+    This only works if embedded libraries are not marshalled or
+    they are marshalled with consistent naming.
+
+    Right now delocate on OSX doesn't apply any marshaling to file names,
+    and thus this works correctly. Auditwheel currently seems to work
+    because it retains the same marshaling hash across libraries,
+    but usage of ``--exclude`` should be preferred over deduping the libs.
+    """
     already_seen = set()
 
     for wheeldir in wheeldirs:
