@@ -1,14 +1,9 @@
 from __future__ import annotations
 
-import glob
 import os
-import re
-import shutil
-from unittest import mock
+import pathlib
 
-import pytest
-
-from consolidatewheels import dedupe
+from consolidatewheels import dedupe, wheelsfunc
 
 HERE = os.path.dirname(__file__)
 FIXTURE_FILES = {
@@ -28,5 +23,25 @@ FIXTURE_FILES = {
 def test_dedupe(tmpdir):
     # Integration test that actually does the dedupe workflow.
     results = dedupe.dedupe(
-        [FIXTURE_FILES["libtwo.whl"], FIXTURE_FILES["libfirst.whl"]], destdir=tmpdir
+        [FIXTURE_FILES["libfirst.whl"], FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir
     )
+    assert len(results) == 2
+
+    os.makedirs(os.path.join(tmpdir, "wheeldirs"))
+    wheeldirs = wheelsfunc.unpackwheels(
+        results, workdir=os.path.join(tmpdir, "wheeldirs")
+    )
+    for wheeldir in wheeldirs:
+        dylibs = []
+        for p in pathlib.Path(wheeldir).rglob("*.so"):
+            if "dylibs" in str(p):
+                dylibs.append(p.name)
+
+        # libfoo must have been removed from libtwo
+        # and only preserved in libone
+        if "libfirst-0.0.0" in wheeldir:
+            assert dylibs == ["libfoo.so"]
+        elif "libtwo-0.0.0" in wheeldir:
+            assert dylibs == ["libbar.so"]
+        else:
+            assert False, f"unexpected wheel {wheeldir}"
