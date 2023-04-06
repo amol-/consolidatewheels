@@ -5,6 +5,8 @@ import pathlib
 import subprocess
 import tempfile
 
+from .wheelsfunc import packwheels, unpackwheels
+
 
 def consolidate(wheels: list[str], destdir: str) -> None:
     """Consolidate shared objects references within multiple wheels.
@@ -17,7 +19,7 @@ def consolidate(wheels: list[str], destdir: str) -> None:
     """
     wheels = [os.path.abspath(w) for w in wheels]
     with tempfile.TemporaryDirectory() as tmpcd:
-        print(f"Working inside {tmpcd}")
+        print(f"Consolidate, Working inside {tmpcd}")
         wheeldirs = unpackwheels(wheels, workdir=tmpcd)
         mangling_map = buildlibmap(wheeldirs)
         print(f"Applying consistent mangling: {mangling_map}")
@@ -80,44 +82,24 @@ def buildlibmap(wheeldirs: list[str]) -> dict[str, str]:
     this will usually signal that --exclude was forgotten for one or
     more libraries when invoking auditwheel.
     """
+    seen_shared_objects = {}  # type: dict[str, str]
     all_shared_objects = {}  # type: dict[str, str]
     for wheeldir in wheeldirs:
         for libpath in pathlib.Path(wheeldir).rglob("*.libs/*.so"):
-            lib = libpath.name
-            libname, extension = os.path.splitext(lib)
-            demangled_libname = libname.rsplit("-", 1)[0]
-            demangled_lib = f"{demangled_libname}{extension}"
+            demangled_lib = demangle_libname(libpath.name)
             if demangled_lib in all_shared_objects:
-                existing_mangling = all_shared_objects[demangled_lib]
+                seen_shared_object = seen_shared_objects[demangled_lib]
                 raise ValueError(
                     f"Library {demangled_lib} appears multiple times: "
-                    f"{existing_mangling}, {lib}"
+                    f"{seen_shared_object}, {libpath}. "
+                    "Did you forget --exclude?"
                 )
-            all_shared_objects[demangled_lib] = lib
+            all_shared_objects[demangled_lib] = libpath.name
+            seen_shared_objects[demangled_lib] = str(libpath)
     return all_shared_objects
 
 
-def unpackwheels(wheels: list[str], workdir: str) -> list[str]:
-    """Unpack multiple wheels into workdir and returns list of resulting directories.
-
-    All provided paths are expected to be in absolute format
-    and the returned results are absolute paths too.
-    """
-    if os.listdir(workdir):
-        raise ValueError("workdir must be empty")
-
-    for wheel in wheels:
-        if subprocess.call(["wheel", "unpack", wheel, "--dest", workdir]):
-            raise RuntimeError(f"Unable to unpack {wheel}")
-    return [os.path.join(workdir, wheel) for wheel in os.listdir(workdir)]
-
-
-def packwheels(wheeldirs: list[str], destdir: str) -> None:
-    """Pack multiple wheel directories as wheel files into a destination path.
-
-    If the destination path doesn't exist it will be created.
-    """
-    os.makedirs(destdir, exist_ok=True)
-    for wheeldir in wheeldirs:
-        if subprocess.call(["wheel", "pack", wheeldir, "--dest-dir", destdir]):
-            raise RuntimeError(f"Unable to pack {wheeldir} into {destdir}")
+def demangle_libname(libfilename):
+    mangled_libname, extension = os.path.splitext(libfilename)
+    demangled_libname = mangled_libname.rsplit("-", 1)[0]
+    return f"{demangled_libname}{extension}"

@@ -1,6 +1,5 @@
 from __future__ import annotations
 
-import glob
 import os
 import re
 import shutil
@@ -8,7 +7,7 @@ from unittest import mock
 
 import pytest
 
-from consolidatewheels import consolidate
+from consolidatewheels import consolidate_linux, wheelsfunc
 
 HERE = os.path.dirname(__file__)
 FIXTURE_FILES = {
@@ -20,58 +19,27 @@ FIXTURE_FILES = {
 }
 
 
-def test_unpackwheels(tmpdir):
-    # Test catching invalid wheels
-    with pytest.raises(RuntimeError) as err:
-        consolidate.unpackwheels(["notexisting.whl"], workdir=tmpdir)
-    assert str(err.value) == "Unable to unpack notexisting.whl"
-
-    # Test main workflow, should unpack the example wheel into tmpdir
-    results = consolidate.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
-    assert results == [os.path.join(tmpdir, "libtwo-0.0.0")]
-
-    # Test that we catch when tmpdir is not empty
-    with pytest.raises(ValueError) as err:
-        consolidate.unpackwheels(["notexisting.whl"], workdir=tmpdir)
-    assert str(err.value) == "workdir must be empty"
-
-
-def test_packwheels(tmpdir):
-    wheeldir = consolidate.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
-    wheeldir = wheeldir[0]
-
-    # Ensure that packing a wheel directory works
-    destdir = os.path.join(tmpdir, "wheels")
-    consolidate.packwheels([wheeldir], destdir=destdir)
-    assert glob.glob(os.path.join(destdir, "libtwo-0.0.0-cp310-cp310-*.whl"))
-
-    # Ensure we trap errors
-    with pytest.raises(RuntimeError) as err:
-        consolidate.packwheels(["non-existing-dir"], destdir=destdir)
-    assert str(err.value) == f"Unable to pack non-existing-dir into {destdir}"
-
-
 def test_buildlibmap(tmpdir):
-    wheeldir = consolidate.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
+    wheeldir = wheelsfunc.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
     wheeldir = wheeldir[0]
 
     # Ensure that mapping works in common case
-    mapping = consolidate.buildlibmap([wheeldir])
-    assert mapping == {"libbar.so": "libbar-3fac4b7b.so"}
+    mapping = consolidate_linux.buildlibmap([wheeldir])
+    assert mapping == {
+        "libbar.so": "libbar-3fac4b7b.so",
+        "libfoo.so": "libfoo-3faccd3s.so",
+    }
 
     # Ensure buildlibmap detects conflicts
     duplicatewheeldir = os.path.join(tmpdir, "anotherwheel")
     shutil.copytree(wheeldir, duplicatewheeldir)
     with pytest.raises(ValueError) as err:
-        consolidate.buildlibmap([wheeldir, duplicatewheeldir])
-    assert (
-        str(err.value) == "Library libbar.so appears multiple times: "
-        "libbar-3fac4b7b.so, libbar-3fac4b7b.so"
-    )
+        consolidate_linux.buildlibmap([wheeldir, duplicatewheeldir])
+    assert re.search(r"Library lib.+\.so appears multiple times: ", str(err.value))
 
 
 def test_patch_wheeldirs(tmpdir):
-    wheeldir = consolidate.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
+    wheeldir = wheelsfunc.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=tmpdir)
     wheeldir = wheeldir[0]
 
     # Create a second wheel without the mangled lib
@@ -85,7 +53,7 @@ def test_patch_wheeldirs(tmpdir):
     # Ensure that patch_wheels patches all shared objects in provided wheels
     # according to the mangling_map
     with mock.patch("subprocess.call", return_value=0) as mock_call:
-        consolidate.patch_wheeldirs(
+        consolidate_linux.patch_wheeldirs(
             [wheeldir, duplicatewheeldir],
             mangling_map={"libbar.so": "libbar-3fac4b7b.so"},
         )
@@ -131,7 +99,7 @@ def test_patch_wheeldirs(tmpdir):
     # Ensure we trap errors in patching files
     with pytest.raises(RuntimeError) as err:
         with mock.patch("subprocess.call", return_value=1) as mock_call:
-            consolidate.patch_wheeldirs(
+            consolidate_linux.patch_wheeldirs(
                 [wheeldir, duplicatewheeldir],
                 mangling_map={"libbar.so": "libbar-3fac4b7b.so"},
             )
@@ -144,9 +112,9 @@ def test_consolidate(tmpdir):
     # Integration test that actually does the whole workflow.
 
     with mock.patch(
-        "consolidatewheels.consolidate._invoke_patchelf", return_value=0
+        "consolidatewheels.consolidate_linux._invoke_patchelf", return_value=0
     ) as mock_call:
-        consolidate.consolidate([FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir)
+        consolidate_linux.consolidate([FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir)
     # Find the workdir directly from the patchelf invokation
     workdir = mock_call.call_args[0][-1].split("libtwo-0.0.0")[0]
     mock_call.assert_has_calls(
