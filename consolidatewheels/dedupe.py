@@ -49,6 +49,7 @@ def build_dependencies_tree(
         dependencies = deptree[distribution_name] = []
 
         metadata = pkginfo.get_metadata(wheel_fname)
+        print("METADATA", wheel_fname, metadata, metadata.requires_dist)
         deps = metadata.requires_dist
         for req_str in deps:
             req = pkg_resources.Requirement.parse(req_str)

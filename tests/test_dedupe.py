@@ -45,3 +45,31 @@ def test_dedupe(tmpdir):
             assert dylibs == ["libbar.so"]
         else:
             assert False, f"unexpected wheel {wheeldir}"
+
+
+def test_build_dependencies_tree():
+    name2files, deptree = dedupe.build_dependencies_tree(
+        [FIXTURE_FILES["libfirst.whl"], FIXTURE_FILES["libtwo.whl"]]
+    )
+    assert deptree == {"libfirst": [], "libtwo": ["libfirst"]}
+
+
+def test_sort_dependencies():
+    result = dedupe.sort_dependencies(
+        {
+            "libtwo2": ["libfirst"],
+            "libthird": ["libtwo", "libfirst"],
+            "libfourth": ["libthird"],
+            "libtwo": ["libfirst"],
+            "libfirst": [],
+            "libother": ["numpy"],
+        }
+    )
+    assert result == [
+        "libfirst",
+        "libother",
+        "libtwo2",
+        "libtwo",
+        "libthird",
+        "libfourth",
+    ]
