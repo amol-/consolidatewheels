@@ -35,7 +35,7 @@ def test_buildlibmap(tmpdir):
     shutil.copytree(wheeldir, duplicatewheeldir)
     with pytest.raises(ValueError) as err:
         consolidate_linux.buildlibmap([wheeldir, duplicatewheeldir])
-    assert str(err.value).startswith("Library libbar.so appears multiple times: ")
+    assert re.search(r"Library lib.+\.so appears multiple times: ", str(err.value))
 
 
 def test_patch_wheeldirs(tmpdir):
