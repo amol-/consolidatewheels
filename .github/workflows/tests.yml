@@ -33,7 +33,7 @@ jobs:
           architecture: x64
       - name: Install Test dependencies
         run: |
-          pip install -U --upgrade-strategy=eager --pre -e .[testing]
+          pip install -U --upgrade-strategy=eager --pre '.[testing]'
       - name: Run tests
         run: |
           pytest -v
