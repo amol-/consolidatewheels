@@ -80,6 +80,13 @@ After ``consolidatewheels`` is used, the final result would be::
 which would work correctly as far as ``libone`` is imported _before_ ``libtwo`` as they will
 both look for ``libfoo-ef63151d.so`` which was loaded already by ``libone``.
 
+OSX Support
+~~~~~~~~~~~
+
+``consolidatewheels`` works also in conjunction with ``delocate``, consolidating all libraries
+embedded by ``delocate`` and removing duplicates of the embedded libraries when they are provided
+in multiple wheels.
+
 Install
 -------
 
