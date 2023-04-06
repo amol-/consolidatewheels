@@ -102,10 +102,11 @@ def get_library_dependencies(libpath: str | pathlib.Path) -> dict[str, str]:
     out = subprocess.run(["otool", "-X", "-L", libpath], capture_output=True)
     libpaths = {}
     for line in out.stdout.decode("utf-8").splitlines():
-        dependency, _ = line.strip().split(maxsplit=1)
-        if not dependency.startswith("@loader_path"):
+        line = line.strip()
+        if not line.startswith("@loader_path"):
             # Libs included by delocate will all be relative to the loader
             continue
+        dependency, _ = line.split(maxsplit=1)
         libname = os.path.basename(dependency)
         libpaths[libname] = dependency
     return libpaths
