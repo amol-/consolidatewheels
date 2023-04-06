@@ -16,7 +16,7 @@ jobs:
       - uses: pre-commit/action@v3.0.0
 
   test:
-    name: Test on CPython ${{ matrix.python }}
+    name: Test on CPython ${{ matrix.os }} - ${{ matrix.python }}
     strategy:
       fail-fast: false
       matrix:
