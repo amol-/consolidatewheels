@@ -83,7 +83,9 @@ def test_patch_wheeldirs(tmpdir):
     wheeldirs = wheelsfunc.unpackwheels([FIXTURE_FILES["libtwo.whl"]], workdir=workdir)
 
     consolidate_id = "ASDFGH"
-    with mock.patch("subprocess.call") as mock_subprocess_call:
+    with mock.patch("subprocess.run"), mock.patch(
+        "subprocess.call"
+    ) as mock_subprocess_call:
         consolidate_osx.patch_wheeldirs(wheeldirs, consolidate_id)
     mock_subprocess_call.assert_has_calls(
         [
