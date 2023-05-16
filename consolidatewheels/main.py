@@ -4,10 +4,10 @@ import argparse
 import os
 import shutil
 import subprocess
-import sys
+import platform
 import tempfile
 
-from . import consolidate_linux, consolidate_osx, dedupe
+from . import consolidate_linux, consolidate_win, consolidate_osx, dedupe
 
 
 def main() -> int:
@@ -15,13 +15,17 @@ def main() -> int:
 
     Executes consolidatewheels and returns the exit code.
     """
+    detected_system = platform.system().lower()
+
     if not requirements_satisfied():
         return 1
 
     opts = parse_options()
-    if sys.platform == "linux":
+    if detected_system == "linux":
         consolidate_linux.consolidate(opts.wheels, opts.dest)
-    elif sys.platform == "darwin":
+    elif detected_system == "windows":
+        consolidate_win.consolidate(opts.wheels, opts.dest)
+    elif detected_system == "darwin":
         # On Mac, delocate does not mangle library names,
         # but there is no --exclude option,
         # so we just have to remove the extra lib.
@@ -70,7 +74,9 @@ def requirements_satisfied() -> bool:
 
     Returns ``False`` is the requirements are not satisfied.
     """
-    if sys.platform == "darwin":
+    detected_system = platform.system().lower()
+
+    if detected_system == "darwin":
         if not shutil.which("install_name_tool"):
             print("Cannot find required utility `install_name_tool` in PATH")
             return False
@@ -78,7 +84,7 @@ def requirements_satisfied() -> bool:
         if not shutil.which("codesign"):
             print("Cannot find required utility `codesign` in PATH")
             return False
-    elif sys.platform == "linux":
+    elif detected_system == "linux":
         # Ensure that patchelf exists and we can use it.
         if not shutil.which("patchelf"):
             print("Cannot find required utility `patchelf` in PATH")
@@ -89,8 +95,12 @@ def requirements_satisfied() -> bool:
         except subprocess.CalledProcessError:
             print("Could not call `patchelf` binary")
             return False
+    elif detected_system == "windows":
+        # At the moment there are no system dependencies required.
+        pass
     else:
-        print("Error: This tool only supports Linux and MacOSX")
+        print("Error: This tool only supports Linux, MacOSX and Windows")
+        print("Detected System:", detected_system)
         return False
 
     # All requirements are in place, that's good!

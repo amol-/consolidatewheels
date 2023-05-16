@@ -43,6 +43,9 @@ def packwheels(wheeldirs: list[str], destdir: str) -> list[str]:
 
         # This is a bit of an hack to preserve order of directories
         wheel = os.listdir(tmpdir)[0]
+        expected_dest_file = os.path.join(destdir, wheel)
+        if os.path.exists(expected_dest_file):
+            os.unlink(expected_dest_file)
         shutil.move(os.path.join(tmpdir, wheel), destdir)
         resulting_wheels.append(os.path.join(destdir, wheel))
     return resulting_wheels
