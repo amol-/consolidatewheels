@@ -24,7 +24,15 @@ def main() -> int:
     if detected_system == "linux":
         consolidate_linux.consolidate(opts.wheels, opts.dest)
     elif detected_system == "windows":
-        consolidate_win.consolidate(opts.wheels, opts.dest)
+        # On Windows, we need to include all libraries
+        # so that they get mangled and reserve the right
+        # size in the IMPORTS section of the DLL to account for
+        # the mangling hash. That way we can then replace the hash
+        # without risk of overflowing.
+        # dedupe will take care that they don't appear twice.
+        with tempfile.TemporaryDirectory() as dedupedir:
+            wheels = dedupe.dedupe(opts.wheels, dedupedir, mangled=True)
+            consolidate_win.consolidate(wheels, opts.dest)
     elif detected_system == "darwin":
         # On Mac, delocate does not mangle library names,
         # but there is no --exclude option,
