@@ -2,12 +2,12 @@ from __future__ import annotations
 
 import argparse
 import os
+import platform
 import shutil
 import subprocess
-import platform
 import tempfile
 
-from . import consolidate_linux, consolidate_win, consolidate_osx, dedupe
+from . import consolidate_linux, consolidate_osx, consolidate_win, dedupe
 
 
 def main() -> int:
