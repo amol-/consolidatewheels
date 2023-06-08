@@ -46,17 +46,20 @@ def test_patch_wheeldirs(tmpdir):
     duplicatewheeldir = os.path.join(tmpdir, "anotherwheel")
     shutil.copytree(wheeldir, duplicatewheeldir)
     os.rename(
-        os.path.join(duplicatewheeldir, "libtwo.libs", "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"),
-        os.path.join(duplicatewheeldir, "libtwo.libs", "otherlib.dll")
+        os.path.join(
+            duplicatewheeldir, "libtwo.libs", "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"
+        ),
+        os.path.join(duplicatewheeldir, "libtwo.libs", "otherlib.dll"),
     )
 
     # Ensure that patch_wheels patches all shared objects in provided wheels
     # according to the mangling_map
     with mock.patch(
-        "consolidatewheels.consolidate_win._get_dll_imports", 
-        return_value=["bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"]), mock.patch(
-            "consolidatewheels.consolidate_win._patch_dll", return_value=True
-        ) as mock_call:
+        "consolidatewheels.consolidate_win._get_dll_imports",
+        return_value=["bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"],
+    ), mock.patch(
+        "consolidatewheels.consolidate_win._patch_dll", return_value=True
+    ) as mock_call:
         consolidate_win.patch_wheeldirs(
             [wheeldir, duplicatewheeldir],
             mangling_map={"bar.dll": "bar-REPLACEMENTHASH.dll"},
@@ -66,7 +69,11 @@ def test_patch_wheeldirs(tmpdir):
             mock.call(
                 "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
                 "bar-REPLACEMENTHASH.dll",
-                os.path.join(duplicatewheeldir, "libtwo.libs", "foo-1897da919eaed88c4c6f41b2487930e8.dll"),
+                os.path.join(
+                    duplicatewheeldir,
+                    "libtwo.libs",
+                    "foo-1897da919eaed88c4c6f41b2487930e8.dll",
+                ),
             ),
             mock.call(
                 "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
@@ -76,12 +83,16 @@ def test_patch_wheeldirs(tmpdir):
             mock.call(
                 "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
                 "bar-REPLACEMENTHASH.dll",
-                os.path.join(wheeldir, "libtwo.libs", "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"),
+                os.path.join(
+                    wheeldir, "libtwo.libs", "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"
+                ),
             ),
             mock.call(
                 "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
                 "bar-REPLACEMENTHASH.dll",
-                os.path.join(wheeldir, "libtwo.libs", "foo-1897da919eaed88c4c6f41b2487930e8.dll"),
+                os.path.join(
+                    wheeldir, "libtwo.libs", "foo-1897da919eaed88c4c6f41b2487930e8.dll"
+                ),
             ),
         ],
         any_order=True,
@@ -89,8 +100,11 @@ def test_patch_wheeldirs(tmpdir):
 
     # Ensure we trap errors in patching files
     with pytest.raises(RuntimeError) as err:
-        with mock.patch("consolidatewheels.consolidate_win._patch_dll", return_value=False), mock.patch(
-            "consolidatewheels.consolidate_win._get_dll_imports", return_value=["bar-3fac4b7b.dll"]
+        with mock.patch(
+            "consolidatewheels.consolidate_win._patch_dll", return_value=False
+        ), mock.patch(
+            "consolidatewheels.consolidate_win._get_dll_imports",
+            return_value=["bar-3fac4b7b.dll"],
         ):
             consolidate_win.patch_wheeldirs(
                 [wheeldir, duplicatewheeldir],
@@ -105,28 +119,34 @@ def test_consolidate(tmpdir):
     # Integration test that actually does the whole workflow.
 
     with mock.patch(
-        "consolidatewheels.consolidate_linux._invoke_patchelf", return_value=0
-    ) as mock_call:
+        "consolidatewheels.consolidate_win._patch_dll"
+    ) as mock_call, mock.patch(
+        "consolidatewheels.consolidate_win._get_dll_imports",
+        return_value=["bar-fakemangling.dll"],
+    ):
         consolidate_win.consolidate([FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir)
     # Find the workdir directly from the patchelf invokation
     workdir = mock_call.call_args[0][-1].split("libtwo-0.0.0")[0]
     mock_call.assert_has_calls(
         [
             mock.call(
-                "libbar.so",
-                "libbar-3fac4b7b.so",
-                os.path.join(
-                    workdir, "libtwo-0.0.0", "libtwo.libs", "libbar-3fac4b7b.so"
-                ),
-            ),
-            mock.call(
-                "libbar.so",
-                "libbar-3fac4b7b.so",
+                "bar-fakemangling.dll",
+                "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
                 os.path.join(
                     workdir,
                     "libtwo-0.0.0",
-                    "libtwo",
-                    "_libtwo.cpython-310-x86_64-linux-gnu.so",
+                    "libtwo.libs",
+                    "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
+                ),
+            ),
+            mock.call(
+                "bar-fakemangling.dll",
+                "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
+                os.path.join(
+                    workdir,
+                    "libtwo-0.0.0",
+                    "libtwo.libs",
+                    "foo-1897da919eaed88c4c6f41b2487930e8.dll",
                 ),
             ),
         ],
