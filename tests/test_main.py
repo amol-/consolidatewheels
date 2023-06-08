@@ -48,7 +48,11 @@ def test_requirements_satisfied():
     assert verify_result is False
 
     # Ensure the check passes when dependencies are satisfied
-    with mock.patch("shutil.which", return_value="fakepath"), mock.patch(
+    with mock.patch(
+        "platform.system", return_value="linux"
+    ), mock.patch(
+        "shutil.which", return_value="fakepath"
+    ), mock.patch(
         "subprocess.check_output"
     ):
         verify_result = main.requirements_satisfied()
@@ -85,6 +89,11 @@ def test_requirements_satisfied():
     ):
         verify_result = main.requirements_satisfied()
     assert verify_result is False
+
+    # Windows has no system dependencies, so should always work
+    with mock.patch("platform.system", return_value="windows"):
+        verify_result = main.requirements_satisfied()
+    assert verify_result is True
 
 
 def test_main():
@@ -128,12 +137,15 @@ def test_main():
         "consolidatewheels.consolidate_linux.consolidate"
     ) as consolidate_linux_func, mock.patch(
         "consolidatewheels.consolidate_osx.consolidate"
-    ) as consolidate_osx_func:
+    ) as consolidate_osx_func, mock.patch(
+        "consolidatewheels.consolidate_win.consolidate"
+    ) as consolidate_win_func:
         return_value = main.main()
     assert return_value == 1
 
     consolidate_func = {
         "linux": consolidate_linux_func,
         "darwin": consolidate_osx_func,
+        "windows": consolidate_win_func
     }[platform.system().lower()]
     consolidate_func.assert_not_called()
