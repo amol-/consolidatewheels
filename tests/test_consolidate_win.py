@@ -46,51 +46,42 @@ def test_patch_wheeldirs(tmpdir):
     duplicatewheeldir = os.path.join(tmpdir, "anotherwheel")
     shutil.copytree(wheeldir, duplicatewheeldir)
     os.rename(
-        os.path.join(duplicatewheeldir, "libtwo.libs", "libbar-3fac4b7b.so"),
-        os.path.join(duplicatewheeldir, "libtwo.libs", "libotherlib.so"),
+        os.path.join(duplicatewheeldir, "libtwo.libs", "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"),
+        os.path.join(duplicatewheeldir, "libtwo.libs", "otherlib.dll")
     )
 
     # Ensure that patch_wheels patches all shared objects in provided wheels
     # according to the mangling_map
-    with mock.patch("subprocess.call", return_value=0) as mock_call:
+    with mock.patch(
+        "consolidatewheels.consolidate_win._get_dll_imports", 
+        return_value=["bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"]), mock.patch(
+            "consolidatewheels.consolidate_win._patch_dll", return_value=True
+        ) as mock_call:
         consolidate_win.patch_wheeldirs(
             [wheeldir, duplicatewheeldir],
-            mangling_map={"libbar.so": "libbar-3fac4b7b.so"},
+            mangling_map={"bar.dll": "bar-REPLACEMENTHASH.dll"},
         )
     mock_call.assert_has_calls(
         [
             mock.call(
-                [
-                    "patchelf",
-                    "--replace-needed",
-                    "libbar.so",
-                    "libbar-3fac4b7b.so",
-                    os.path.join(duplicatewheeldir, "libtwo.libs", "libotherlib.so"),
-                ]
+                "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
+                "bar-REPLACEMENTHASH.dll",
+                os.path.join(duplicatewheeldir, "libtwo.libs", "foo-1897da919eaed88c4c6f41b2487930e8.dll"),
             ),
             mock.call(
-                [
-                    "patchelf",
-                    "--replace-needed",
-                    "libbar.so",
-                    "libbar-3fac4b7b.so",
-                    os.path.join(
-                        duplicatewheeldir,
-                        "libtwo",
-                        "_libtwo.cpython-310-x86_64-linux-gnu.so",
-                    ),
-                ]
+                "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
+                "bar-REPLACEMENTHASH.dll",
+                os.path.join(duplicatewheeldir, "libtwo.libs", "otherlib.dll"),
             ),
             mock.call(
-                [
-                    "patchelf",
-                    "--replace-needed",
-                    "libbar.so",
-                    "libbar-3fac4b7b.so",
-                    os.path.join(
-                        wheeldir, "libtwo", "_libtwo.cpython-310-x86_64-linux-gnu.so"
-                    ),
-                ]
+                "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
+                "bar-REPLACEMENTHASH.dll",
+                os.path.join(wheeldir, "libtwo.libs", "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"),
+            ),
+            mock.call(
+                "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
+                "bar-REPLACEMENTHASH.dll",
+                os.path.join(wheeldir, "libtwo.libs", "foo-1897da919eaed88c4c6f41b2487930e8.dll"),
             ),
         ],
         any_order=True,
@@ -98,13 +89,15 @@ def test_patch_wheeldirs(tmpdir):
 
     # Ensure we trap errors in patching files
     with pytest.raises(RuntimeError) as err:
-        with mock.patch("subprocess.call", return_value=1) as mock_call:
+        with mock.patch("consolidatewheels.consolidate_win._patch_dll", return_value=False), mock.patch(
+            "consolidatewheels.consolidate_win._get_dll_imports", return_value=["bar-3fac4b7b.dll"]
+        ):
             consolidate_win.patch_wheeldirs(
                 [wheeldir, duplicatewheeldir],
-                mangling_map={"libbar.so": "libbar-3fac4b7b.so"},
+                mangling_map={"bar.dll": "bar-NEWHASH.dll"},
             )
     assert re.compile(
-        r"Unable to apply mangling to .+, libbar.so->libbar-3fac4b7b.so"
+        r"Unable to apply mangling to .+, bar-3fac4b7b.dll->bar-NEWHASH.dll"
     ).match(str(err.value))
 
 
