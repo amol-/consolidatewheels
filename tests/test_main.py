@@ -130,6 +130,21 @@ def test_main():
         default_options.wheels, default_options.dest
     )
 
+    # Simulate Windows
+    with mock.patch("platform.system", return_value="windows"), mock.patch(
+        "consolidatewheels.main.requirements_satisfied", return_value=True
+    ), mock.patch(
+        "consolidatewheels.main.parse_options", return_value=default_options
+    ), mock.patch(
+        "consolidatewheels.dedupe.dedupe", return_value=default_options.wheels
+    ), mock.patch(
+        "consolidatewheels.consolidate_win.consolidate"
+    ) as consolidate_func:
+        main.main()
+    consolidate_func.assert_called_once_with(
+        default_options.wheels, default_options.dest
+    )
+
     # Ensure we exit if we fail checking requirements
     with mock.patch(
         "consolidatewheels.main.requirements_satisfied", return_value=False
