@@ -45,6 +45,8 @@ def packwheels(wheeldirs: list[str], destdir: str) -> list[str]:
         wheel = os.listdir(tmpdir)[0]
         expected_dest_file = os.path.join(destdir, wheel)
         if os.path.exists(expected_dest_file):
+            # This is required by windows as it is unable to
+            # overwrite the existing file.
             os.unlink(expected_dest_file)
         shutil.move(os.path.join(tmpdir, wheel), destdir)
         resulting_wheels.append(os.path.join(destdir, wheel))
