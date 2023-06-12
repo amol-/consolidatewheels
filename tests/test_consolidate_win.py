@@ -122,7 +122,7 @@ def test_consolidate(tmpdir):
         "consolidatewheels.consolidate_win._patch_dll"
     ) as mock_call, mock.patch(
         "consolidatewheels.consolidate_win._get_dll_imports",
-        return_value=["bar-fakemangling.dll"],
+        return_value=["bar-mangled.dll", "missing-mangled.dll"],
     ):
         consolidate_win.consolidate([FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir)
     # Find the workdir directly from the patchelf invokation
@@ -130,7 +130,7 @@ def test_consolidate(tmpdir):
     mock_call.assert_has_calls(
         [
             mock.call(
-                "bar-fakemangling.dll",
+                "bar-mangled.dll",
                 "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
                 os.path.join(
                     workdir,
@@ -140,7 +140,7 @@ def test_consolidate(tmpdir):
                 ),
             ),
             mock.call(
-                "bar-fakemangling.dll",
+                "bar-mangled.dll",
                 "bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll",
                 os.path.join(
                     workdir,
@@ -152,3 +152,53 @@ def test_consolidate(tmpdir):
         ],
         any_order=True,
     )
+
+
+def test_patch_dll_fail(tmpdir):
+    # Integration test that actually does the whole workflow.
+
+    with mock.patch(
+        "consolidatewheels.consolidate_win._patch_dll", return_value=False
+    ), mock.patch(
+        "consolidatewheels.consolidate_win._get_dll_imports",
+        return_value=["bar-mangled.dll"],
+    ):
+        with pytest.raises(RuntimeError) as err:
+            consolidate_win.consolidate([FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir)
+        assert str(err.value).startswith("Unable to apply mangling to ")
+        assert str(err.value).endswith(
+            ", bar-mangled.dll->bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"
+        )
+
+
+def test_get_dll_imports():
+    with mock.patch("pefile.PE") as mock_pe:
+        mock_pe.return_value.__enter__.return_value = mock.Mock(
+            DIRECTORY_ENTRY_IMPORT=[mock.Mock(dll=b"test-random.dll")]
+        )
+        imports = consolidate_win._get_dll_imports("random-lib-to-patch.dll")
+    assert imports == ["test-random.dll"]
+
+
+@pytest.mark.parametrize(("retval",), [[True], [False]])
+def test_patch_dll(retval):
+    with mock.patch("pefile.PE") as mock_pe:
+        mock_pe.return_value = dllentry = mock.Mock(
+            DIRECTORY_ENTRY_IMPORT=[
+                mock.Mock(
+                    dll=b"test-random.dll",
+                    struct=mock.MagicMock(Name="test-random.dll"),
+                )
+            ]
+        )
+        dllentry.set_bytes_at_rva.return_value = retval
+        print(dllentry.set_bytes_at_rva)
+
+        result = consolidate_win._patch_dll(
+            "test-random.dll", "test-replaced.dll", "libtopatch.dll"
+        )
+        assert result == retval
+
+        dllentry.set_bytes_at_rva.assert_has_calls(
+            [mock.call("test-random.dll", b"test-replaced.dll\x00")]
+        )

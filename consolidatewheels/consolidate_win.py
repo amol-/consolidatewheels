@@ -75,11 +75,20 @@ def _patch_dll(lib_to_replace: str, lib_replacement: str, lib_to_patch: str) -> 
     """Patch lib_to_patch replacing the name of a dependency."""
     dlllib = pefile.PE(lib_to_patch)
     for entry in dlllib.DIRECTORY_ENTRY_IMPORT:
+        print(
+            "PROVA0",
+            entry.dll,
+            lib_to_replace,
+            entry.dll.decode("utf-8") == lib_to_replace,
+        )
         if entry.dll.decode("utf-8") == lib_to_replace:
+            print("PROVA", entry.struct.Name, lib_to_replace, dlllib.set_bytes_at_rva)
             if not dlllib.set_bytes_at_rva(
                 entry.struct.Name, lib_replacement.encode("ascii") + b"\0"
             ):
+                print("SUX")
                 return False
+            print("VALLED")
     dlllib.merge_modified_section_data()
     # Unclear how well PE behaves when closing it before writing it back
     # but if we don't close it, we get an error that the file is already in use.
