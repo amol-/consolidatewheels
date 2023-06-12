@@ -87,6 +87,13 @@ After ``consolidatewheels`` is used, the final result would be::
 which would work correctly as far as ``libone`` is imported _before_ ``libtwo`` as they will
 both look for ``libfoo-ef63151d.so`` which was loaded already by ``libone``.
 
+Linux Support
+~~~~~~~~~~~~~
+
+``consolidatewheels`` works also in conjunction with ``auditwheel``, consolidating all libraries
+embedded by ``auditwheel``. But on Linux duplicates won't be removed automatically, so
+you need to make sure to use ``auditwheel --exclude`` to ensure libraries are not embedded twice.
+
 OSX Support
 ~~~~~~~~~~~
 
