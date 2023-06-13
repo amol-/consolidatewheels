@@ -16,6 +16,13 @@ consolidatewheels
 .. image:: https://img.shields.io/pypi/l/consolidatewheels.svg
     :target: https://pypi.python.org/pypi/consolidatewheels
 
+Supported Platforms
+-------------------
+
+* Linux
+* OSX
+* Windows
+
 Introduction
 ------------
 
@@ -80,11 +87,25 @@ After ``consolidatewheels`` is used, the final result would be::
 which would work correctly as far as ``libone`` is imported _before_ ``libtwo`` as they will
 both look for ``libfoo-ef63151d.so`` which was loaded already by ``libone``.
 
+Linux Support
+~~~~~~~~~~~~~
+
+``consolidatewheels`` works also in conjunction with ``auditwheel``, consolidating all libraries
+embedded by ``auditwheel``. But on Linux duplicates won't be removed automatically, so
+you need to make sure to use ``auditwheel --exclude`` to ensure libraries are not embedded twice.
+
 OSX Support
 ~~~~~~~~~~~
 
 ``consolidatewheels`` works also in conjunction with ``delocate``, consolidating all libraries
 embedded by ``delocate`` and removing duplicates of the embedded libraries when they are provided
+in multiple wheels.
+
+Windows Support
+~~~~~~~~~~~~~~~
+
+``consolidatewheels`` works also in conjunction with ``delvewheel``, consolidating all libraries
+embedded by ``delvewheel`` and removing duplicates of the embedded libraries when they are provided
 in multiple wheels.
 
 Install

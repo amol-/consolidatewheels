@@ -16,7 +16,8 @@ classifiers = [
 ]
 dependencies = [
     "wheel",
-    "pkginfo"
+    "pkginfo",
+    "pefile"
 ]
 
 [project.optional-dependencies]

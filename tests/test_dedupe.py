@@ -21,9 +21,11 @@ FIXTURE_FILES = {
 
 
 def test_dedupe(tmpdir):
-    # Integration test that actually does the dedupe workflow.
+    # Integration test that actually does the dedupe workflow on OSX.
     results = dedupe.dedupe(
-        [FIXTURE_FILES["libfirst.whl"], FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir
+        [FIXTURE_FILES["libfirst.whl"], FIXTURE_FILES["libtwo.whl"]],
+        destdir=tmpdir,
+        mangled=False,
     )
     assert len(results) == 2
 
@@ -43,6 +45,39 @@ def test_dedupe(tmpdir):
             assert dylibs == ["libfoo.so"]
         elif "libtwo-0.0.0" in wheeldir:
             assert dylibs == ["libbar.so"]
+        else:
+            assert False, f"unexpected wheel {wheeldir}"
+
+
+def test_dedupe_mangled(tmpdir):
+    # Integration test that actually does the dedupe workflow on Windows.
+    results = dedupe.dedupe(
+        [FIXTURE_FILES["libfirst.whl"], FIXTURE_FILES["libtwo.whl"]],
+        destdir=tmpdir,
+        mangled=True,
+    )
+    assert len(results) == 2
+
+    os.makedirs(os.path.join(tmpdir, "wheeldirs"))
+    wheeldirs = wheelsfunc.unpackwheels(
+        results, workdir=os.path.join(tmpdir, "wheeldirs")
+    )
+    for wheeldir in wheeldirs:
+        dylibs = []
+        for p in pathlib.Path(wheeldir).rglob("*.dll"):
+            print(p)
+            if ".libs" in str(p):
+                dylibs.append(p.name)
+
+        # libfoo must have been removed from libtwo
+        # and only preserved in libone
+        if "libfirst-0.0.0" in wheeldir:
+            # foo should be mangled according to the libfirst mangling
+            assert dylibs == ["foo-93c7258ead29c23ea6ef9c0778a28c9a.dll"]
+        elif "libtwo-0.0.0" in wheeldir:
+            # bar should be mangled according to libtwo mangling
+            # and foo-1897da919eaed88c4c6f41b2487930e8.dll should have been deleted.
+            assert dylibs == ["bar-d7b39fe6bdc290ef3cdc9fb9c8ded0b9.dll"]
         else:
             assert False, f"unexpected wheel {wheeldir}"
 

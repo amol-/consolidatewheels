@@ -2,7 +2,7 @@ from __future__ import annotations
 
 import argparse
 import os
-import sys
+import platform
 from subprocess import CalledProcessError
 from unittest import mock
 
@@ -43,19 +43,19 @@ def test_options():
 
 def test_requirements_satisfied():
     # Ensure we detect when it's not a supported platform
-    with mock.patch("sys.platform", new="os2"):
+    with mock.patch("platform.system", return_value="os2"):
         verify_result = main.requirements_satisfied()
     assert verify_result is False
 
     # Ensure the check passes when dependencies are satisfied
-    with mock.patch("shutil.which", return_value="fakepath"), mock.patch(
-        "subprocess.check_output"
-    ):
+    with mock.patch("platform.system", return_value="linux"), mock.patch(
+        "shutil.which", return_value="fakepath"
+    ), mock.patch("subprocess.check_output"):
         verify_result = main.requirements_satisfied()
     assert verify_result is True
 
     # Ensure we detect lack of patchelf
-    with mock.patch("sys.platform", new="linux"), mock.patch(
+    with mock.patch("platform.system", return_value="linux"), mock.patch(
         "shutil.which"
     ) as shutil_which:
         shutil_which.return_value = None
@@ -63,7 +63,7 @@ def test_requirements_satisfied():
     assert verify_result is False
 
     # Ensure we detect patchelf not working.
-    with mock.patch("sys.platform", new="linux"), mock.patch(
+    with mock.patch("platform.system", return_value="linux"), mock.patch(
         "shutil.which", return_value=["fakepath"]
     ), mock.patch(
         "subprocess.check_output",
@@ -73,18 +73,23 @@ def test_requirements_satisfied():
     assert verify_result is False
 
     # Ensure we detect missing install_name_tool.
-    with mock.patch("sys.platform", new="darwin"), mock.patch(
+    with mock.patch("platform.system", return_value="darwin"), mock.patch(
         "shutil.which", return_value=None
     ):
         verify_result = main.requirements_satisfied()
     assert verify_result is False
 
     # Ensure we detect missing codesign.
-    with mock.patch("sys.platform", new="darwin"), mock.patch(
+    with mock.patch("platform.system", return_value="darwin"), mock.patch(
         "shutil.which", side_effect=["fakepath", None]
     ):
         verify_result = main.requirements_satisfied()
     assert verify_result is False
+
+    # Windows has no system dependencies, so should always work
+    with mock.patch("platform.system", return_value="windows"):
+        verify_result = main.requirements_satisfied()
+    assert verify_result is True
 
 
 def test_main():
@@ -94,7 +99,7 @@ def test_main():
     default_options.wheels = ["one", "two"]
 
     # Simulate Linux
-    with mock.patch("sys.platform", new="linux"), mock.patch(
+    with mock.patch("platform.system", return_value="linux"), mock.patch(
         "consolidatewheels.main.requirements_satisfied", return_value=True
     ), mock.patch(
         "consolidatewheels.main.parse_options", return_value=default_options
@@ -107,7 +112,7 @@ def test_main():
     )
 
     # Simulate OSX
-    with mock.patch("sys.platform", new="darwin"), mock.patch(
+    with mock.patch("platform.system", return_value="darwin"), mock.patch(
         "consolidatewheels.main.requirements_satisfied", return_value=True
     ), mock.patch(
         "consolidatewheels.main.parse_options", return_value=default_options
@@ -121,6 +126,21 @@ def test_main():
         default_options.wheels, default_options.dest
     )
 
+    # Simulate Windows
+    with mock.patch("platform.system", return_value="windows"), mock.patch(
+        "consolidatewheels.main.requirements_satisfied", return_value=True
+    ), mock.patch(
+        "consolidatewheels.main.parse_options", return_value=default_options
+    ), mock.patch(
+        "consolidatewheels.dedupe.dedupe", return_value=default_options.wheels
+    ), mock.patch(
+        "consolidatewheels.consolidate_win.consolidate"
+    ) as consolidate_func:
+        main.main()
+    consolidate_func.assert_called_once_with(
+        default_options.wheels, default_options.dest
+    )
+
     # Ensure we exit if we fail checking requirements
     with mock.patch(
         "consolidatewheels.main.requirements_satisfied", return_value=False
@@ -128,12 +148,15 @@ def test_main():
         "consolidatewheels.consolidate_linux.consolidate"
     ) as consolidate_linux_func, mock.patch(
         "consolidatewheels.consolidate_osx.consolidate"
-    ) as consolidate_osx_func:
+    ) as consolidate_osx_func, mock.patch(
+        "consolidatewheels.consolidate_win.consolidate"
+    ) as consolidate_win_func:
         return_value = main.main()
     assert return_value == 1
 
     consolidate_func = {
         "linux": consolidate_linux_func,
         "darwin": consolidate_osx_func,
-    }[sys.platform]
+        "windows": consolidate_win_func,
+    }[platform.system().lower()]
     consolidate_func.assert_not_called()
