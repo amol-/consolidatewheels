@@ -192,7 +192,6 @@ def test_patch_dll(retval):
             ]
         )
         dllentry.set_bytes_at_rva.return_value = retval
-        print(dllentry.set_bytes_at_rva)
 
         result = consolidate_win._patch_dll(
             "test-random.dll", "test-replaced.dll", "libtopatch.dll"
