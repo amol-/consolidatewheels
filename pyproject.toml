@@ -3,9 +3,9 @@ requires = ["setuptools>=45"]
 
 [project]
 name = "consolidatewheels"
-version = "0.4"
+version = "0.5"
 authors = [
-    {name = "Alessandro Molina", email = "amol@turbogears.org"},
+    {name = "Alessandro Molina", email = "alessandro@molina.fyi"},
 ]
 license = {text = "MIT"}
 description = "Consolidates the shared object dependencies across multiple wheels"
