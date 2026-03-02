@@ -5,8 +5,8 @@ import os
 import pathlib
 import tempfile
 
-import pkg_resources
 import pkginfo
+from packaging.requirements import Requirement
 
 from . import wheelsfunc
 
@@ -52,11 +52,10 @@ def build_dependencies_tree(
         print("METADATA", wheel_fname, metadata, metadata.requires_dist)
         deps = metadata.requires_dist
         for req_str in deps:
-            req = pkg_resources.Requirement.parse(req_str)
-            req_short, _sep, _marker = str(req).partition(";")
+            req = Requirement(req_str)
             if req.marker is None:
                 # unconditional dependency, track it.
-                dependencies.append(req_short)
+                dependencies.append(req.name)
                 continue
 
     return name2file, deptree
