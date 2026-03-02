@@ -38,6 +38,7 @@ jobs:
         run: |
           pytest -v
       - name: Publish to coveralls.io
+        if: matrix.os == 'ubuntu-latest' && matrix.python == '3.11'
         env:
           GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
         run: |
