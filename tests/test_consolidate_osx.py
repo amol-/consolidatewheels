@@ -24,7 +24,9 @@ FIXTURE_FILES = {
 def test_consolidate(tmpdir):
     # Integration test that actually does the whole workflow.
     consolidated_id = "ASDFGH"
-    with mock.patch("secrets.token_hex", return_value=consolidated_id) as mock_token_hex, mock.patch(
+    with mock.patch(
+        "secrets.token_hex", return_value=consolidated_id
+    ) as mock_token_hex, mock.patch(
         "consolidatewheels.consolidate_osx.update_library_id", return_value=0
     ) as mock_update_library_id, mock.patch(
         "consolidatewheels.consolidate_osx.update_dependency_path", return_value=0
