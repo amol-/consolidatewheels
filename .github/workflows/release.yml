@@ -12,24 +12,25 @@ jobs:
     name: Build Distributions
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/checkout@v2
+      - uses: actions/checkout@v4
 
       - name: Build sdist
         run: |
           pip install build
           python -m build --sdist --wheel
 
-      - uses: actions/upload-artifact@v2
+      - uses: actions/upload-artifact@v4
         with:
+          name: dist
           path: dist/*
 
   store_tag_artifacts:
     needs: [build_dist]
     runs-on: ubuntu-latest
     steps:
-      - uses: actions/download-artifact@v2
+      - uses: actions/download-artifact@v4
         with:
-          name: artifact
+          name: dist
           path: dist
       - uses: softprops/action-gh-release@v1
         with:
