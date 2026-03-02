@@ -8,6 +8,12 @@ import tempfile
 
 from .wheelsfunc import packwheels, unpackwheels
 
+# macOS install_name_tool rewrites dependency/load-id strings in-place.
+# To reduce overflow errors we keep this replacement path very short,
+# while still including enough random bits to keep collision risk low.
+CONSOLIDATED_LIB_PREFIX = "/!"
+CONSOLIDATED_ID_BYTES = 8
+
 
 def consolidate(wheels: list[str], destdir: str) -> None:
     """Consolidate shared objects references within multiple wheels.
@@ -22,7 +28,7 @@ def consolidate(wheels: list[str], destdir: str) -> None:
     with tempfile.TemporaryDirectory() as tmpcd:
         print(f"Consolidate, Working inside {tmpcd}")
         wheeldirs = unpackwheels(wheels, workdir=tmpcd)
-        consolidated_id = secrets.token_hex(16)
+        consolidated_id = secrets.token_hex(CONSOLIDATED_ID_BYTES)
         print(f"Applying consistent references: {consolidated_id}")
         patch_wheeldirs(wheeldirs, consolidated_id)
         packwheels(wheeldirs, destdir)
@@ -52,7 +58,8 @@ def patch_wheeldirs(wheeldirs: list[str], consolidated_id: str) -> None:
                 # this means we only need to change the ID.
                 # The path was already set by delocate.
                 patched_identifier[libname] = libid = os.path.join(
-                    "/CLD", f"{consolidated_id}", libname
+                    f"{CONSOLIDATED_LIB_PREFIX}{consolidated_id}",
+                    libname,
                 )
                 update_library_id(lib_to_patch_path, libid)
                 resign_library(lib_to_patch_path)

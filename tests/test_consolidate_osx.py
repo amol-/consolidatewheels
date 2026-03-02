@@ -24,7 +24,7 @@ FIXTURE_FILES = {
 def test_consolidate(tmpdir):
     # Integration test that actually does the whole workflow.
     consolidated_id = "ASDFGH"
-    with mock.patch("secrets.token_hex", return_value=consolidated_id), mock.patch(
+    with mock.patch("secrets.token_hex", return_value=consolidated_id) as mock_token_hex, mock.patch(
         "consolidatewheels.consolidate_osx.update_library_id", return_value=0
     ) as mock_update_library_id, mock.patch(
         "consolidatewheels.consolidate_osx.update_dependency_path", return_value=0
@@ -37,6 +37,7 @@ def test_consolidate(tmpdir):
         consolidate_osx.consolidate(
             [FIXTURE_FILES["libfirst.whl"], FIXTURE_FILES["libtwo.whl"]], destdir=tmpdir
         )
+    mock_token_hex.assert_called_once_with(consolidate_osx.CONSOLIDATED_ID_BYTES)
 
     # Find the workdir directly from the patchelf invokation
     workdir = str(mock_resign_library.call_args[0][-1]).split("libtwo-0.0.0")[0]
@@ -47,7 +48,10 @@ def test_consolidate(tmpdir):
                 pathlib.Path(
                     os.path.join(workdir, "libfirst-0.0.0", ".dylibs", "libfoo.so")
                 ),
-                os.path.join("/CLD", consolidated_id, "libfoo.so"),
+                os.path.join(
+                    f"{consolidate_osx.CONSOLIDATED_LIB_PREFIX}{consolidated_id}",
+                    "libfoo.so",
+                ),
             )
         ],
         any_order=True,
@@ -60,7 +64,10 @@ def test_consolidate(tmpdir):
                     os.path.join(workdir, "libtwo-0.0.0", ".dylibs", "libbar.so")
                 ),
                 "/fake/dependency/path/libfoo.so",
-                os.path.join("/CLD", consolidated_id, "libfoo.so"),
+                os.path.join(
+                    f"{consolidate_osx.CONSOLIDATED_LIB_PREFIX}{consolidated_id}",
+                    "libfoo.so",
+                ),
             )
         ],
         any_order=True,
@@ -96,7 +103,10 @@ def test_patch_wheeldirs(tmpdir):
                         os.path.join(workdir, "libtwo-0.0.0", ".dylibs", "libfoo.so")
                     ),
                     "-id",
-                    os.path.join("/CLD", consolidate_id, "libfoo.so"),
+                    os.path.join(
+                        f"{consolidate_osx.CONSOLIDATED_LIB_PREFIX}{consolidate_id}",
+                        "libfoo.so",
+                    ),
                 ]
             ),
             mock.call(
@@ -129,7 +139,10 @@ def test_patch_wheeldirs(tmpdir):
                     ),
                     "-change",
                     "/fake/dependency/path/libfoo.so",
-                    os.path.join("/CLD", consolidate_id, "libfoo.so"),
+                    os.path.join(
+                        f"{consolidate_osx.CONSOLIDATED_LIB_PREFIX}{consolidate_id}",
+                        "libfoo.so",
+                    ),
                 ]
             ),
         ]
