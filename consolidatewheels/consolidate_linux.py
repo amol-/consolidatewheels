@@ -1,9 +1,11 @@
 from __future__ import annotations
 
+import itertools
 import os
 import pathlib
 import subprocess
 import tempfile
+from typing import Iterator
 
 from .wheelsfunc import packwheels, unpackwheels
 
@@ -31,7 +33,7 @@ def patch_wheeldirs(wheeldirs: list[str], mangling_map: dict[str, str]):
     """Provided a mapping of mangled library names, apply the manglign to all wheels.
 
     This traverses the content of all provided wheel directories
-    looking for .so files. For every file, will patch the file dependencies
+    looking for shared object files. For every file, will patch the file dependencies
     so that they look for the mangled version of the library instead of
     the unmangled one.
 
@@ -40,7 +42,7 @@ def patch_wheeldirs(wheeldirs: list[str], mangling_map: dict[str, str]):
     ignoring missing entries as we just invoke patchelf on everything.
     """
     for wheeldir in wheeldirs:
-        for lib_to_patch_path in pathlib.Path(wheeldir).rglob("*.so"):
+        for lib_to_patch_path in _find_shared_objects(wheeldir):
             lib_to_patch = str(lib_to_patch_path)
             print(f"Patching {lib_to_patch}")
             for lib_to_mangle, lib_mangled_name in mangling_map.items():
@@ -81,12 +83,35 @@ def buildlibmap(wheeldirs: list[str]) -> dict[str, str]:
     Report an error if the same directory has multiple possible mangling,
     this will usually signal that --exclude was forgotten for one or
     more libraries when invoking auditwheel.
+
+    Versioned libraries are mapped under their exact versioned name, so
+    libfoo.so.1.2.3 is not assumed to satisfy a dependency recorded as
+    libfoo.so.1. Recovering the shorter soname would mean reading it
+    from the library itself.
+
+    A library auditwheel mangled twice, libfoo-aaaaaaaa-bbbbbbbb.so,
+    demangles onto libfoo-aaaaaaaa.so, which is another embedded library
+    and the name its users already depend on, so it is left alone. An
+    unmangled namesake is a genuine duplicate and is still reported.
     """
+    embedded_names = {
+        libpath.name
+        for wheeldir in wheeldirs
+        for libpath in _find_shared_objects(wheeldir)
+        if libpath.parent.name.endswith(".libs")
+    }
     seen_shared_objects = {}  # type: dict[str, str]
     all_shared_objects = {}  # type: dict[str, str]
     for wheeldir in wheeldirs:
-        for libpath in pathlib.Path(wheeldir).rglob("*.libs/*.so"):
+        for libpath in _find_shared_objects(wheeldir):
+            if not libpath.parent.name.endswith(".libs"):
+                continue
             demangled_lib = demangle_libname(libpath.name)
+            if (
+                demangled_lib in embedded_names
+                and demangle_libname(demangled_lib) != demangled_lib
+            ):
+                continue
             if demangled_lib in all_shared_objects:
                 seen_shared_object = seen_shared_objects[demangled_lib]
                 raise ValueError(
@@ -99,7 +124,15 @@ def buildlibmap(wheeldirs: list[str]) -> dict[str, str]:
     return all_shared_objects
 
 
-def demangle_libname(libfilename):
-    mangled_libname, extension = os.path.splitext(libfilename)
-    demangled_libname = mangled_libname.rsplit("-", 1)[0]
-    return f"{demangled_libname}{extension}"
+def _find_shared_objects(wheeldir: str) -> Iterator[pathlib.Path]:
+    """Find unversioned and versioned shared libraries in an unpacked wheel."""
+    return itertools.chain(
+        pathlib.Path(wheeldir).rglob("*.so"),
+        pathlib.Path(wheeldir).rglob("*.so.[0-9]*"),
+    )
+
+
+def demangle_libname(libfilename: str) -> str:
+    """Remove auditwheel's hash from the basename before the first dot."""
+    base, ext = libfilename.split(".", 1)
+    return f"{base.rsplit('-', 1)[0]}.{ext}"
